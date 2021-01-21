@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Incident;
 use App\Form\IncidentType;
+use App\Message\MailNotification;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,11 +23,9 @@ class HomeController extends AbstractController
      * @param EntityManagerInterface $em
      * @param MailerInterface $mailer
      * @return Response
-     * @throws \Symfony\Component\Mailer\Exception\TransportExceptionInterface
      */
     public function index(Request $request, EntityManagerInterface $em, MailerInterface $mailer): Response
     {
-        
         $task = new Incident();
         $task->setUser($this->getUser())
             ->setCreatedAt(new \DateTime('now'));
@@ -40,15 +39,9 @@ class HomeController extends AbstractController
             $em->persist($task);
             $em->flush();
             
-            $email = (new TemplatedEmail())
-                ->from(new Address('mailer@gmail.com', 'Acme Mail Bot'))
-                ->to($task->getUser()->getEmail())
-                ->subject('New Incident #' . $task->getId() . ' - ' . $task->getUser()->getEmail())
-                ->html("<p>".$task->getDescription()."</p>")
-                
-                ;
-            sleep(3);
-            $mailer->send($email);
+            $this->dispatchMessage(
+                new MailNotification($task->getDescription(), $task->getId(), $task->getUser()->getEmail())
+            );
             
             return $this->redirectToRoute('home');
         }
